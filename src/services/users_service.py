@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-
+import asyncio
 app = FastAPI()
 
 # Fake data — dict keyed by user id
@@ -11,12 +11,12 @@ fake_users = {
 
 
 @app.get("/users")
-def list_users():
+async def list_users():
     return list(fake_users.values())
 
 
 @app.get("/users/{user_id}")
-def get_user(user_id: int):
+async def get_user(user_id: int):
     user = fake_users.get(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
