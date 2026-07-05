@@ -1,0 +1,11 @@
+# Core (needed now: routing + serving)
+fastapi
+uvicorn[standard]
+httpx
+
+# Testing
+pytest
+
+# --- Added as the build reaches each feature ---
+# redis            # rate limiting, caching
+# prometheus-client  # observability
