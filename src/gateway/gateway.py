@@ -1,5 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 import httpx
+import redis
+import os
+import time
 
 app = FastAPI()
 
@@ -10,11 +13,34 @@ SERVICES = {
     "products": "http://localhost:8003",
 }
 
+r = redis.Redis(host="localhost", port=6379)
+
+# ---------- Rate limiter ----------
+# Load and register the token-bucket Lua script once at startup.
+_LUA_PATH = os.path.join(os.path.dirname(__file__), "token_bucket.lua")
+with open(_LUA_PATH) as f:
+    _token_bucket = r.register_script(f.read())
+
+CAPACITY = 10        # bucket holds up to 10 tokens
+REFILL_RATE = 1.0    # 1 token/sec sustained, bursts up to CAPACITY
 
 @app.get("/{full_path:path}")
-async def gateway(full_path: str):
-    service_name = full_path.split("/")[0]
+async def gateway(full_path: str, request: Request):
+    client_ip = request.client.host
+    key = f"rate_limit:{client_ip}"
 
+    allowed, tokens_left, retry_after = _token_bucket(
+        keys=[key],
+        args=[CAPACITY, REFILL_RATE, time.time(), 1],
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded",
+            headers={"Retry-After": str(int(retry_after) + 1)},
+        )
+
+    service_name = full_path.split("/")[0]
     # 1. Is this a service we know about?
     base_url = SERVICES.get(service_name)
     if base_url is None:
