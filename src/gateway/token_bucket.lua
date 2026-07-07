@@ -1,5 +1,4 @@
--- token_bucket.lua
--- Atomic token-bucket rate limiter, run inside Redis via EVALSHA.
+-- Atomic token-bucket rate limiter, run inside.
 --
 -- KEYS[1] = bucket key, e.g. "rate_limit:1.2.3.4"
 -- ARGV[1] = capacity      (max tokens the bucket can hold)
@@ -7,7 +6,7 @@
 -- ARGV[3] = now           (current unix time in seconds, passed by the app)
 -- ARGV[4] = requested     (tokens this request costs, usually 1)
 --
--- Returns: { allowed (1/0), tokens_left, retry_after_seconds }
+-- Returns: { allowed (1/0), retry_after_seconds }
 
 local capacity    = tonumber(ARGV[1])
 local refill_rate = tonumber(ARGV[2])
@@ -46,4 +45,4 @@ redis.call("HSET", KEYS[1], "tokens", tokens, "ts", now)
 local ttl = math.ceil(capacity / refill_rate) * 2
 redis.call("EXPIRE", KEYS[1], ttl)
 
-return { allowed, tokens, retry_after }
+return { allowed,retry_after }
