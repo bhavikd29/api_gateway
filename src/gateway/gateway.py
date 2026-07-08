@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 import httpx
 import redis
@@ -6,6 +6,7 @@ import os
 import time
 import uuid
 import json
+from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI()
 
@@ -42,6 +43,49 @@ LIMIT = 100          # max requests per window
 # ---------- Response cache ----------
 CACHE_TTL = 30       # seconds a cached response stays fresh
 
+# ---------- Prometheus metrics ----------
+REQUESTS = Counter(
+    "gateway_requests_total",
+    "Total requests handled, by backend service and response status.",
+    ["service", "status"],
+)
+REQUEST_DURATION = Histogram(
+    "gateway_request_duration_seconds",
+    "End-to-end request handling time in seconds.",
+)
+CACHE_EVENTS = Counter(
+    "gateway_cache_events_total",
+    "Cache lookups on cacheable requests, by result.",
+    ["result"],   # "hit" or "miss"
+)
+RATE_LIMITED = Counter(
+    "gateway_rate_limited_total",
+    "Requests rejected by the rate limiter (HTTP 429).",
+)
+
+
+@app.middleware("http")
+async def metrics_middleware(request: Request, call_next):
+    # Don't instrument the scrape endpoint itself.
+    if request.url.path == "/metrics":
+        return await call_next(request)
+
+    start = time.perf_counter()
+    response = await call_next(request)
+    REQUEST_DURATION.observe(time.perf_counter() - start)
+
+    # Same "first path segment" rule the router uses to pick a backend.
+    service = request.url.path.strip("/").split("/")[0] or "root"
+    REQUESTS.labels(service=service, status=response.status_code).inc()
+    return response
+
+
+@app.get("/metrics")
+def metrics():
+    # Render all registered metrics in Prometheus's text exposition format.
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.get("/{full_path:path}")
 async def gateway(full_path: str, request: Request):
     client_ip = request.client.host
@@ -62,6 +106,7 @@ async def gateway(full_path: str, request: Request):
         )
 
     if not allowed:
+        RATE_LIMITED.inc()
         raise HTTPException(
             status_code=429,
             detail="Rate limit exceeded",
@@ -87,8 +132,11 @@ async def gateway(full_path: str, request: Request):
     if is_cacheable:
         cached = r.get(cache_key)              # bytes, or None if absent
         if cached is not None:                 # HIT
+            CACHE_EVENTS.labels(result="hit").inc()
             body = json.loads(cached)          # string -> JSON (Python object)
             return JSONResponse(content=body, headers={"X-Cache": "HIT"})
+        else:                                  # MISS
+            CACHE_EVENTS.labels(result="miss").inc()
 
     # 2. FORWARD: miss -> call the backend as usual (carry the query string too).
     target_url = f"{base_url}/{full_path}"

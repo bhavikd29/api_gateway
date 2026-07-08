@@ -8,4 +8,4 @@ pytest
 
 # --- Added as the build reaches each feature ---
 # redis            # rate limiting, caching
-# prometheus-client  # observability
+prometheus-client  # observability
