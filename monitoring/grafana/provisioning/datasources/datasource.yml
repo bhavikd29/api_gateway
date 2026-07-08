@@ -1,0 +1,10 @@
+# Grafana reads this on startup and creates the datasource automatically.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus          # display name shown in Grafana
+    type: prometheus          # datasource plugin to use
+    access: proxy             # Grafana's backend queries Prometheus (not the browser)
+    url: http://prometheus:9090   # service name on the Compose network — NOT localhost
+    isDefault: true           # panels with no explicit datasource use this one
+    uid: prometheus           # stable id so dashboards can reference it reliably

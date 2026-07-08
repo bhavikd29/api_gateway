@@ -1,0 +1,20 @@
+# Virtual environments (env/ is the big one — the whole conda env)
+env/
+.venv/
+venv/
+
+# Version control
+.git/
+.gitignore
+
+# Python caches
+__pycache__/
+*.py[cod]
+
+# Dev tooling & docs — not needed inside any service image
+loadtest/
+monitoring/
+*.md
+.vscode/
+.DS_Store
+*.rdb

@@ -1,0 +1,15 @@
+# Backend service: products. Identical to the gateway Dockerfile except the two
+# lines naming this service's file (COPY + CMD).
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy ONLY this service's code, so the image stays independent of the others.
+COPY src/services/products_service.py .
+
+# Listen on 8000 inside this container's own port space (host mapping is in Compose).
+CMD ["fastapi", "run", "products_service.py", "--host", "0.0.0.0", "--port", "8000"]

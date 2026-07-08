@@ -8,7 +8,7 @@ scrape_configs:
   - job_name: "api_gateway"        # label attached to every metric from this job
     metrics_path: "/metrics"       # the path to hit (this is actually the default)
     static_configs:                # targets listed by hand (vs. auto-discovery)
-      - targets: ["host.docker.internal:8000"]
-        # host.docker.internal = "the host machine, from inside the container".
-        # Docker Desktop on macOS maps this to your Mac, so Prometheus (in a
-        # container) can reach the gateway running on the host at :8000.
+      - targets: ["gateway:8000"]
+        # "gateway" = the Compose service name. Prometheus and the gateway are
+        # both containers on the same Compose network, so Prometheus reaches the
+        # gateway directly by service name — no host.docker.internal hop needed.

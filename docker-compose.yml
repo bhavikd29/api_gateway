@@ -1,0 +1,82 @@
+# `docker compose up` brings up the whole stack. Compose puts every service on
+# one shared private network where each is reachable by its SERVICE NAME (the
+# keys below: gateway, redis, users, ...). That name-based DNS is what makes the
+# env vars from Step 4 work (REDIS_HOST=redis, etc.).
+
+services:
+  # ============ My own services (BUILT from my Dockerfiles) ============
+
+  gateway:
+    build:
+      context: .                        # build context = project root (so COPY paths resolve)
+      dockerfile: src/gateway/Dockerfile
+    ports:
+      - "8000:8000"                     # HOST:CONTAINER — reach the gateway at localhost:8000
+    environment:                        # inject the env vars the code reads (Step 4)
+      REDIS_HOST: redis
+      USERS_URL: http://users:8000
+      ORDERS_URL: http://orders:8000
+      PRODUCTS_URL: http://products:8000
+    depends_on:                         # start these before starting the gateway
+      - redis
+      - users
+      - orders
+      - products
+
+  users:
+    build:
+      context: .
+      dockerfile: src/services/Dockerfile.users
+    ports:
+      - "8001:8000"                     # optional: direct host access for debugging
+
+  orders:
+    build:
+      context: .
+      dockerfile: src/services/Dockerfile.orders
+    ports:
+      - "8002:8000"
+
+  products:
+    build:
+      context: .
+      dockerfile: src/services/Dockerfile.products
+    ports:
+      - "8003:8000"
+
+  # ============ Third-party services (PULLED as official images) ============
+
+  redis:
+    image: redis:7-alpine               # nothing to build — pull the official image
+    # No published port on purpose: only the gateway talks to Redis, over the
+    # internal network. Not publishing also avoids clashing with a Redis you may
+    # already be running on your Mac's 6379.
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"                     # Prometheus UI at localhost:9090
+    volumes:
+      # Bind-mount MY config file onto the path Prometheus reads inside the
+      # container. Lets me control the scrape config without building an image.
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - gateway
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"                     # Grafana UI at localhost:3000
+    volumes:
+      - grafana-data:/var/lib/grafana   # named volume: keeps dashboards/datasource across restarts
+      # Auto-provisioning: Grafana reads these on startup (datasource + dashboards).
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      # Drop our dashboard JSON into the folder the provider watches.
+      - ./monitoring/grafana-dashboard.json:/etc/grafana/dashboards/gateway.json
+    depends_on:
+      - prometheus
+
+# Named volumes are managed by Docker and persist across `up`/`down`
+# (unlike the container's own filesystem, which is wiped when it's removed).
+volumes:
+  grafana-data:

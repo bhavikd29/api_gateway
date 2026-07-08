@@ -11,13 +11,15 @@ from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_
 app = FastAPI()
 
 # ---------- Routing table ----------
+# Each backend's base URL comes from an env var. Default = the local bare-host
+# form (so `fastapi dev` still works); Compose injects the service-name form.
 SERVICES = {
-    "users": "http://localhost:8001",
-    "orders": "http://localhost:8002",
-    "products": "http://localhost:8003",
+    "users": os.getenv("USERS_URL", "http://localhost:8001"),
+    "orders": os.getenv("ORDERS_URL", "http://localhost:8002"),
+    "products": os.getenv("PRODUCTS_URL", "http://localhost:8003"),
 }
 
-r = redis.Redis(host="localhost", port=6379)
+r = redis.Redis(host=os.getenv("REDIS_HOST", "localhost"), port=6379)
 
 # ---------- Rate limiter ----------
 # Which algorithm is active: "token_bucket" or "sliding_window".

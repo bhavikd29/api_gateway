@@ -1,0 +1,13 @@
+# Tells Grafana: "watch a folder for dashboard JSON files and auto-load them."
+apiVersion: 1
+
+providers:
+  - name: 'gateway-dashboards'   # any label for this provider
+    orgId: 1                     # default Grafana org
+    folder: ''                   # '' = put dashboards in the top-level "General" folder
+    type: file                   # load from files on disk (vs. a remote source)
+    disableDeletion: false       # allow removing dashboards that disappear from disk
+    updateIntervalSeconds: 30    # re-scan the folder every 30s (picks up edits)
+    allowUiUpdates: true         # let me tweak in the UI without it reverting instantly
+    options:
+      path: /etc/grafana/dashboards   # the folder Grafana scans (we mount our JSON here)
