@@ -1,11 +1,12 @@
-# Core (needed now: routing + serving)
-fastapi
-uvicorn[standard]
-httpx
+# Core (routing + serving)
+fastapi[standard]   # includes the `fastapi dev` CLI, uvicorn, httpx deps
+httpx               # explicit: used directly in the gateway + test scripts
+
+# Data store / client (rate limiting, caching)
+redis
+
+# Observability
+prometheus-client
 
 # Testing
 pytest
-
-# --- Added as the build reaches each feature ---
-# redis            # rate limiting, caching
-prometheus-client  # observability
