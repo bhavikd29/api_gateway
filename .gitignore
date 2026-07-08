@@ -29,3 +29,7 @@ htmlcov/
 
 # Docker / data volumes
 *.rdb
+
+# Personal reference notes (kept local, not published)
+CLAUDE.md
+DEVLOG.md
