@@ -10,3 +10,4 @@ prometheus-client
 
 # Testing
 pytest
+pytest-asyncio      # lets async tests run (the concurrency/atomicity test)
